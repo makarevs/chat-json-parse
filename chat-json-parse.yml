@@ -1,0 +1,47 @@
+name: chat-json-parse
+channels:
+  - conda-forge
+  - anaconda
+  - defaults
+dependencies:
+  - python=3.10  # 3.10.13 
+  - pip
+  # conda install -n timeseries python=3.10 numpy=1.19 numba=0.54  # as 3.11 is not compatible with earlier zlib...
+  # - numpy>=1.19  #,<=1.23  # 1.24.4 # ydata_profiling complains that Numba needs NumPy 1.25 or less
+  - pandas>=1.3,<=1.5  # 1.5.2  # in pandas v2 pd.Series.append and pd.DataFrame.iteritems are removed
+  # - numba # 0.57.1 # =0.54
+  # - pandas-profiling  # being deprecated, fails with pandas v.2, replaced with ydata-profilig
+  # - ydata-profiling
+  # Graphics / diagramming
+  # - matplotlib
+  # - seaborn
+  # - graphviz
+  # Data science basics
+  # - scikit-learn
+  # - statsmodels
+  # - scipy
+  # # - jupyter
+  # - notebook
+  # Accessories
+  - pydantic
+  # - flake8
+  - xlrd
+  - tqdm
+  - typer
+  - xlsxwriter
+  # # Boosting
+  # - lightgbm
+  # # NLP
+  # - spaCy
+  # - gensim
+  # - nltk
+  # # - mxnet-cu92
+  # - pip:
+    # - Keras  # ==2.3.1
+    # - tensorflow  #==2.0.0
+    # - jupyter_contrib_nbextensions==0.5.1
+    # - xgboost
+    # - fasttext
+    # - torch
+    # - bert-embedding
+    # - flair
