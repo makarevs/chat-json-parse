@@ -1,17 +1,16 @@
 from __future__ import annotations
-
 from typing import Any, List, Optional
-
-from pydantic import BaseModel
+from pydantic import BaseModel, HttpUrl
 
 
 class ChatEngineModel(BaseModel):
     id: str
     name: str
-    maxLength: int
-    requestLimit: int
-    type: str
-    selectedAddons: List
+    iconUrl: Optional[HttpUrl]
+    maxLength: Optional[int]
+    requestLimit: Optional[int]
+    type: Optional[str]
+    # selectedAddons: Optional[List]
 
 
 class ChatEngineModelMin(BaseModel):
@@ -35,13 +34,13 @@ class Replay(BaseModel):
 class HistoryItem(BaseModel):
     id: str
     name: str
-    model: ChatEngineModel
+    model: ChatEngineModelMin
     prompt: str
     temperature: int
     folderId: Any
     messages: List[Message]
     replay: Replay
-    selectedAddons: List
+    selectedAddons: Optional[List[str]]
     lastActivityDate: int
     isMessageStreaming: bool
 

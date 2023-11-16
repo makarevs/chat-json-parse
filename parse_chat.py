@@ -6,7 +6,7 @@ import json
 from chat_model import ChatModel
 import pandas as pd
 from datetime import datetime
-from utils import frames_to_excel, trim
+from utils import frames_to_excel, trim, RowAccumulator
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,22 +18,33 @@ def table_sheet_name(ord: int, ord2: int) -> str:
     return f"Table {ord}.{ord2}"
 
 
-def parse_chat_response(text: str, message_no: int) -> Tuple[List[str], List[Dict[str, pd.DataFrame]]]:
+def parse_chat_response(text: str, message_no: int, df_tables: pd.DataFrame) -> Tuple[List[str], List[Dict[str, pd.DataFrame]]]:
     """process the text response into plain text, and dataframes from table(s)"""
 
     lines: List[str] = []
     df_tables: List[pd.DataFrame] = []
     message_lines = text.split('\n')
+    tab_sep  = '|'
 
     # Process, line by line identifying the table
     in_table = False
     df_table: pd.DataFrame = None
     for line_no, line in enumerate(message_lines):
+
         prev_in_table = in_table
+        in_table = False
+        line = line.strip()
         if len(line) > 0:
-            if line[0] == line[-1] == '|':
+            line_split = [e.strip() for e in line.split(tab_sep)]
+            if len(line_split) > 1: # line[0] == tab_sep:  #  == line[-1]
                 in_table = True
-                row_list = [trim(element) for element in line.split('|')][1:-1]
+                if line_split[0] != [""]:
+                    line_split = [""] + line_split
+                if line_split[-1] != [""]:
+                    line_split = line_split + [""]
+                # line_split += '' if line[-1]=='' else tab_sep
+                # line = '' if line[0]==tab_sep else tab_sep + line
+                row_list = [trim(element) for element in line_split][1:-1]
             if in_table:
                 if df_table is None:
                     df_table = pd.DataFrame(columns=row_list)
@@ -45,16 +56,30 @@ def parse_chat_response(text: str, message_no: int) -> Tuple[List[str], List[Dic
                     #  Check if divider line
                     if len(''.join([elem.replace('-', '') for elem in row_list])) > 0:
                         # df_table = pd.append([df_table, pd.DataFrame])
-                        df_table.loc[len(df_table)] = row_list
+                        try:
+                            df_table.loc[len(df_table)] = row_list
+                        except Exception:
+                            # Create accumulating dataset
+                            acc = RowAccumulator()
+                            for k, v in df_table.iterrows():
+                                # Add row to the dataset
+                                acc.add_row(row=v, quiet=False)
+                            acc.add_row(row=row_list, quiet=False)
+                            df_table = acc.df
+
             else:
                 lines.append(line)
         else:
             lines.append(line)
             in_table = False
 
-        if (not in_table and prev_in_table) or (line_no == len(message_lines)):
-            df_tables.append({"name": table_name, "df": df_table})
-            df_table: pd.DataFrame = None
+        if (message_no == 5 and line_no >= len(message_lines) - 4):
+            print(line)
+
+        if (not in_table and prev_in_table) or (line_no > 1 and line_no == len(message_lines) - 1):
+            if df_table is not None:
+                df_tables.append({"name": table_name, "df": df_table})
+                df_table: pd.DataFrame = None
 
     return lines, df_tables
 
@@ -63,8 +88,8 @@ def parse_chat(json_file: Path) -> Tuple[pd.DataFrame, List[List[pd.DataFrame]]]
     """Read and parse the JSON file from the chat, extracting dialog and tables"""
 
     dfs_tables: List[pd.DataFrame] = []
-
-    with open(json_file, 'r') as f:
+    
+    with open(json_file, 'r', encoding='utf-8') as f:
         chat_data = json.load(f)
         my_json_text = json.dumps(chat_data)
         chat = ChatModel(**chat_data)
@@ -76,13 +101,13 @@ def parse_chat(json_file: Path) -> Tuple[pd.DataFrame, List[List[pd.DataFrame]]]
         if message.role == 'user':
             row = {"Role": ["Q"], "Text": [message.content]}
         elif message.role == 'assistant':
-            message_lines, df_tables = parse_chat_response(text=message.content, message_no=message_no)
+            local_message_lines, df_tables = parse_chat_response(text=message.content, message_no=message_no, df_tables=df_tables)
             if df_tables:
                 dfs_tables.extend(df_tables)
             row = {
                 "Role": ["A"], "Text": [
                     # message.content
-                    '\n'.join(message_lines)
+                    '\n'.join(local_message_lines)
                 ]
             }
         else:
